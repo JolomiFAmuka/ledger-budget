@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Budget Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1916;
+    --surface2: #242220;
+    --border: #2e2c29;
+    --accent: #d4a853;
+    --accent2: #8b6914;
+    --text: #e8e4dc;
+    --text2: #9a9589;
+    --text3: #5c5850;
+    --red: #c0392b;
+    --green: #27ae60;
+    --blue: #3498db;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+  }
+
+  /* CONFIG BANNER */
+  #configBanner {
+    background: #1a120a;
+    border-bottom: 1px solid var(--accent2);
+    padding: 0.75rem 2.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  #configBanner span {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  #configBanner input {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+    outline: none;
+    border-radius: 2px;
+  }
+
+  #configBanner input:focus { border-color: var(--accent); }
+
+  .config-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 0.4rem 1rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    font-weight: 500;
+    white-space: nowrap;
+    border-radius: 2px;
+  }
+
+  .config-btn:hover { background: #e8b963; }
+
+  .sync-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  .sync-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .sync-dot.online { background: var(--green); }
+  .sync-dot.syncing { background: var(--accent); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.75rem 2.5rem 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  header p {
+    font-size: 0.65rem;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 0.2rem;
+  }
+
+  .total-display { text-align: right; }
+  .total-display .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text3); }
+  .total-display .amount { font-family: 'Playfair Display', serif; font-size: 1.9rem; color: var(--accent); font-weight: 700; }
+
+  /* MAIN LAYOUT */
+  main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: calc(100vh - 120px);
+  }
+
+  /* FORM PANEL */
+  .form-panel {
+    border-right: 1px solid var(--border);
+    padding: 2rem;
+    position: sticky;
+    top: 120px;
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+
+  .form-panel h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .field { margin-bottom: 1.2rem; }
+
+  .field label {
+    display: block;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text3);
+    margin-bottom: 0.45rem;
+  }
+
+  .field input, .field textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0.7rem 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    border-radius: 2px;
+  }
+
+  .field input:focus, .field textarea:focus {
+    border-color: var(--accent2);
+    background: var(--surface2);
+  }
+
+  .field textarea { resize: vertical; min-height: 75px; line-height: 1.5; }
+  .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+
+  .timestamp-display {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.7rem 0.9rem;
+    font-size: 0.72rem;
+    color: var(--text3);
+    border-radius: 2px;
+  }
+
+  .btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+
+  .btn {
+    flex: 1;
+    padding: 0.8rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    border-radius: 2px;
+  }
+
+  .btn-primary { background: var(--accent); color: var(--bg); font-weight: 500; }
+  .btn-primary:hover { background: #e8b963; }
+  .btn-primary:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+
+  /* ENTRIES PANEL */
+  .entries-panel { padding: 2rem; overflow-y: auto; }
+
+  .entries-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .entries-header h2 { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--text2); }
+
+  .header-right { display: flex; gap: 0.75rem; align-items: center; }
+
+  .search-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    padding: 0.5rem 0.875rem;
+    outline: none;
+    width: 180px;
+    border-radius: 2px;
+  }
+
+  .search-bar:focus { border-color: var(--accent2); }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.5rem 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 2px;
+  }
+
+  .refresh-btn:hover { border-color: var(--accent2); color: var(--accent); }
+
+  /* MONTH SECTION */
+  .month-section { margin-bottom: 2.5rem; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .month-header:hover { background: var(--surface2); }
+  .month-title { font-family: 'Playfair Display', serif; font-size: 0.95rem; color: var(--accent); }
+  .month-meta { display: flex; align-items: center; gap: 1.25rem; }
+  .month-count { font-size: 0.62rem; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+  .month-total { font-size: 0.875rem; color: var(--accent); font-weight: 500; }
+  .month-toggle { color: var(--text3); font-size: 0.6rem; }
+
+  .month-entries { display: flex; flex-direction: column; gap: 0.5rem; }
+  .month-entries.collapsed { display: none; }
+
+  /* ENTRY CARD */
+  .entry-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem 1.2rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .entry-card:hover { background: var(--surface2); }
+  .entry-card.editing { border-color: var(--accent2); }
+  .entry-card.pending { border-color: var(--accent2); opacity: 0.7; }
+
+  .entry-expense { font-size: 0.875rem; color: var(--text); font-weight: 500; margin-bottom: 0.25rem; }
+  .entry-meta { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  .entry-payer { font-size: 0.68rem; color: var(--text2); }
+  .entry-payer::before { content: '↳ '; color: var(--text3); }
+  .entry-timestamp { font-size: 0.63rem; color: var(--text3); }
+  .entry-notes { font-size: 0.7rem; color: var(--text3); margin-top: 0.5rem; font-style: italic; line-height: 1.4; border-left: 2px solid var(--border); padding-left: 0.75rem; }
+
+  .entry-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; }
+  .entry-amount { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--text); white-space: nowrap; }
+
+  .entry-actions { display: flex; gap: 0.4rem; opacity: 0; transition: opacity 0.15s; }
+  .entry-card:hover .entry-actions { opacity: 1; }
+
+  .action-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.28rem 0.55rem;
+    transition: all 0.15s;
+    border-radius: 2px;
+  }
+
+  .action-btn:hover { border-color: var(--accent2); color: var(--accent); }
+  .action-btn.delete:hover { border-color: var(--red); color: var(--red); }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text3); }
+  .empty-state .icon { font-size: 1.8rem; margin-bottom: 1rem; opacity: 0.4; }
+  .empty-state p { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; }
+  .empty-state .sub { font-size: 0.6rem; margin-top: 0.5rem; opacity: 0.6; }
+
+  /* SETUP OVERLAY */
+  #setupOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,9,8,0.92);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .setup-box {
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    padding: 2.5rem;
+    max-width: 540px;
+    width: 100%;
+  }
+
+  .setup-box h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem; }
+  .setup-box p { font-size: 0.75rem; color: var(--text2); line-height: 1.6; margin-bottom: 1.5rem; }
+  .setup-box .step { font-size: 0.68rem; color: var(--text3); margin-bottom: 0.75rem; line-height: 1.6; }
+  .setup-box .step strong { color: var(--text2); }
+
+  .setup-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--accent2);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    padding: 0.8rem 1rem;
+    outline: none;
+    margin-bottom: 1rem;
+    border-radius: 2px;
+  }
+
+  .setup-input:focus { border-color: var(--accent); }
+
+  .setup-btn {
+    width: 100%;
+    padding: 0.875rem;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+
+  .setup-btn:hover { background: #e8b963; }
+
+  .skip-link { display: block; text-align: center; margin-top: 1rem; font-size: 0.62rem; color: var(--text3); cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+  .skip-link:hover { color: var(--text2); }
+
+  /* NOTIFICATION */
+  .notification {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface2);
+    border: 1px solid var(--accent2);
+    color: var(--accent);
+    padding: 0.8rem 1.4rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    z-index: 1000;
+    animation: slideIn 0.25s ease, fadeOut 0.25s ease 1.75s forwards;
+    border-radius: 2px;
+  }
+
+  .notification.error { border-color: var(--red); color: var(--red); }
+
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeOut { to { opacity: 0; transform: translateY(-5px); } }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; }
+    .form-panel { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    header { flex-direction: column; align-items: flex-start; }
+    #configBanner { flex-direction: column; align-items: flex-start; }
+    #configBanner input { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY (shown on first run) -->
+<div id="setupOverlay">
+  <div class="setup-box">
+    <h2>Connect to Google Sheets</h2>
+    <p>To sync across your iPhone and laptop, paste your Google Apps Script Web App URL below. Your setup guide explains how to get this URL in 5 minutes.</p>
+
+    <div class="step"><strong>Step 1:</strong> Open the setup guide PDF included in your download</div>
+    <div class="step"><strong>Step 2:</strong> Follow the steps to create your Google Sheet and deploy the Apps Script</div>
+    <div class="step"><strong>Step 3:</strong> Copy the Web App URL and paste it here</div>
+
+    <input type="url" class="setup-input" id="setupUrlInput" placeholder="https://script.google.com/macros/s/…/exec" />
+    <button class="setup-btn" onclick="saveScriptUrl()">Connect & Start Syncing</button>
+    <span class="skip-link" onclick="skipSetup()">Use offline (no sync) →</span>
+  </div>
+</div>
+
+<!-- CONFIG BANNER -->
+<div id="configBanner" style="display:none;">
+  <span>Sync URL:</span>
+  <input type="url" id="urlInput" placeholder="https://script.google.com/macros/s/…/exec" />
+  <button class="config-btn" onclick="updateScriptUrl()">Update</button>
+  <div class="sync-status">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncLabel">Not connected</span>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>Ledger</h1>
+    <p>Cross-Device Budget Tracker</p>
+  </div>
+  <div class="total-display">
+    <div class="label">All-time Total</div>
+    <div class="amount" id="grandTotal">$0.00</div>
+  </div>
+</header>
+
+<main>
+  <aside class="form-panel">
+    <h2 id="formTitle">New Entry</h2>
+
+    <div class="field">
+      <label>Expense Description *</label>
+      <input type="text" id="inputExpense" placeholder="e.g. Groceries, Rent, Uber…" />
+    </div>
+
+    <div class="field">
+      <label>Amount *</label>
+      <input type="number" id="inputAmount" placeholder="0.00" step="0.01" min="0" />
+    </div>
+
+    <div class="field">
+      <label>Payer Name *</label>
+      <input type="text" id="inputPayer" placeholder="Who paid?" />
+    </div>
+
+    <div class="field">
+      <label>Timestamp</label>
+      <div class="timestamp-display" id="timestampDisplay">Auto-captured on save</div>
+    </div>
+
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="inputNotes" placeholder="Additional context, tags, references…"></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">Add Entry</button>
+      <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+    </div>
+  </aside>
+
+  <section class="entries-panel">
+    <div class="entries-header">
+      <h2>Entries</h2>
+      <div class="header-right">
+        <input type="text" class="search-bar" placeholder="Search…" oninput="renderEntries()" id="searchInput" />
+        <button class="refresh-btn" onclick="loadFromSheets()">↻ Sync</button>
+      </div>
+    </div>
+    <div id="entriesContainer"></div>
+  </section>
+</main>
+
+<script>
+  // ─── STATE ───────────────────────────────────────────────────────────────
+  let entries = JSON.parse(localStorage.getItem('ledger_entries') || '[]');
+  let scriptUrl = localStorage.getItem('ledger_script_url') || '';
+  let editingId = null;
+  let isSyncing = false;
+
+  // ─── SETUP ───────────────────────────────────────────────────────────────
+  function init() {
+    if (scriptUrl) {
+      document.getElementById('setupOverlay').style.display = 'none';
+      document.getElementById('configBanner').style.display = 'flex';
+      document.getElementById('urlInput').value = scriptUrl;
+      loadFromSheets();
+    }
+    renderEntries();
+    updateTotal();
+    startClock();
+  }
+
+  function saveScriptUrl() {
+    const val = document.getElementById('setupUrlInput').value.trim();
+    if (!val.startsWith('https://script.google.com')) {
+      notify('Please enter a valid Apps Script URL', true);
+      return;
+    }
+    scriptUrl = val;
+    localStorage.setItem('ledger_script_url', scriptUrl);
+    document.getElementById('setupOverlay').style.display = 'none';
+    document.getElementById('configBanner').style.display = 'flex';
+    document.getElementById('urlInput').value = scriptUrl;
+    loadFromSheets();
+  }
+
+  function skipSetup() {
+    document.getElementById('setupOverlay').style.display = 'none';
+    document.getElementById('configBanner').style.display = 'flex';
+    notify('Running in offline mode');
+  }
+
+  function updateScriptUrl() {
+    const val = document.getElementById('urlInput').value.trim();
+    if (!val) return;
+    scriptUrl = val;
+    localStorage.setItem('ledger_script_url', scriptUrl);
+    loadFromSheets();
+    notify('URL updated');
+  }
+
+  // ─── SYNC STATUS ─────────────────────────────────────────────────────────
+  function setSyncStatus(status, msg) {
+    const dot = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    dot.className = 'sync-dot ' + status;
+    label.textContent = msg;
+  }
+
+  // ─── GOOGLE SHEETS API ───────────────────────────────────────────────────
+  async function loadFromSheets() {
+    if (!scriptUrl) return;
+    setSyncStatus('syncing', 'Syncing…');
+    isSyncing = true;
+    try {
+      const res = await fetch(scriptUrl + '?action=getAll', { method: 'GET' });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        entries = data.entries;
+        localStorage.setItem('ledger_entries', JSON.stringify(entries));
+        renderEntries();
+        updateTotal();
+        setSyncStatus('online', 'Synced · ' + new Date().toLocaleTimeString());
+      } else {
+        throw new Error(data.message || 'Unknown error');
+      }
+    } catch (e) {
+      setSyncStatus('error', 'Sync failed');
+      notify('Sync failed — check your URL', true);
+    }
+    isSyncing = false;
+  }
+
+  async function pushToSheets(action, payload) {
+    if (!scriptUrl) return true; // offline mode, just return success
+    setSyncStatus('syncing', 'Saving…');
+    try {
+      const res = await fetch(scriptUrl, {
+        method: 'POST',
+        body: JSON.stringify({ action, ...payload })
+      });
+      const data = await res.json();
+      if (data.status !== 'ok') throw new Error(data.message);
+      setSyncStatus('online', 'Synced · ' + new Date().toLocaleTimeString());
+      return true;
+    } catch (e) {
+      setSyncStatus('error', 'Save failed');
+      notify('Could not save to Sheets — entry saved locally', true);
+      return false;
+    }
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────────────────────────
+  async function saveEntry() {
+    const expense = document.getElementById('inputExpense').value.trim();
+    const amount = parseFloat(document.getElementById('inputAmount').value);
+    const payer = document.getElementById('inputPayer').value.trim();
+    const notes = document.getElementById('inputNotes').value.trim();
+
+    if (!expense || isNaN(amount) || amount <= 0 || !payer) {
+      notify('Please fill required fields', true);
+      return;
+    }
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    if (editingId) {
+      const idx = entries.findIndex(e => e.id === editingId);
+      if (idx !== -1) {
+        entries[idx] = { ...entries[idx], expense, amount, payer, notes, editedAt: new Date().toISOString() };
+        await pushToSheets('update', { entry: entries[idx] });
+        notify('Entry updated');
+      }
+      editingId = null;
+      document.getElementById('formTitle').textContent = 'New Entry';
+    } else {
+      const entry = {
+        id: generateId(),
+        expense, amount, payer, notes,
+        createdAt: new Date().toISOString()
+      };
+      entries.unshift(entry);
+      await pushToSheets('add', { entry });
+      notify('Entry added');
+    }
+
+    localStorage.setItem('ledger_entries', JSON.stringify(entries));
+    clearForm();
+    renderEntries();
+    updateTotal();
+
+    btn.disabled = false;
+    btn.textContent = editingId ? 'Update Entry' : 'Add Entry';
+  }
+
+  async function deleteEntry(id) {
+    if (!confirm('Delete this entry?')) return;
+    entries = entries.filter(e => e.id !== id);
+    localStorage.setItem('ledger_entries', JSON.stringify(entries));
+    await pushToSheets('delete', { id });
+    renderEntries();
+    updateTotal();
+    notify('Entry deleted');
+  }
+
+  function editEntry(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    editingId = id;
+    document.getElementById('inputExpense').value = entry.expense;
+    document.getElementById('inputAmount').value = entry.amount;
+    document.getElementById('inputPayer').value = entry.payer;
+    document.getElementById('inputNotes').value = entry.notes || '';
+    document.getElementById('formTitle').textContent = 'Edit Entry';
+    document.getElementById('saveBtn').textContent = 'Update Entry';
+    document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function clearForm() {
+    ['inputExpense','inputAmount','inputPayer','inputNotes'].forEach(id => document.getElementById(id).value = '');
+    if (editingId) {
+      editingId = null;
+      document.getElementById('formTitle').textContent = 'New Entry';
+      document.getElementById('saveBtn').textContent = 'Add Entry';
+    }
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
+  function renderEntries() {
+    const container = document.getElementById('entriesContainer');
+    const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    let filtered = query
+      ? entries.filter(e => e.expense.toLowerCase().includes(query) || e.payer.toLowerCase().includes(query) || (e.notes||'').toLowerCase().includes(query))
+      : entries;
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="icon">📒</div><p>No entries found</p><p class="sub">${scriptUrl ? 'Click ↻ Sync to fetch latest data' : 'Add your first expense above'}</p></div>`;
+      return;
+    }
+
+    const groups = {};
+    filtered.forEach(e => {
+      const key = getMonthKey(e.createdAt);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(e);
+    });
+
+    container.innerHTML = Object.keys(groups).sort((a,b) => b.localeCompare(a)).map(key => {
+      const monthEntries = groups[key];
+      const monthTotal = monthEntries.reduce((s,e) => s + parseFloat(e.amount), 0);
+      const isCurrent = key === getMonthKey(new Date().toISOString());
+      return `
+        <div class="month-section">
+          <div class="month-header" onclick="toggleMonth('${key}')">
+            <span class="month-title">${getMonthLabel(key)}${isCurrent ? ' ·&nbsp;current' : ''}</span>
+            <div class="month-meta">
+              <span class="month-count">${monthEntries.length} entr${monthEntries.length!==1?'ies':'y'}</span>
+              <span class="month-total">${formatCurrency(monthTotal)}</span>
+              <span class="month-toggle" id="toggle-${key}">▾</span>
+            </div>
+          </div>
+          <div class="month-entries" id="month-${key}">
+            ${monthEntries.map(e => `
+              <div class="entry-card${editingId===e.id?' editing':''}">
+                <div class="entry-left">
+                  <div class="entry-expense">${escHtml(e.expense)}</div>
+                  <div class="entry-meta">
+                    <span class="entry-payer">${escHtml(e.payer)}</span>
+                    <span class="entry-timestamp">${formatTimestamp(e.createdAt)}${e.editedAt?' (edited)':''}</span>
+                  </div>
+                  ${e.notes?`<div class="entry-notes">${escHtml(e.notes)}</div>`:''}
+                </div>
+                <div class="entry-right">
+                  <div class="entry-amount">${formatCurrency(e.amount)}</div>
+                  <div class="entry-actions">
+                    <button class="action-btn" onclick="editEntry('${e.id}')">Edit</button>
+                    <button class="action-btn delete" onclick="deleteEntry('${e.id}')">Del</button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function updateTotal() {
+    const total = entries.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+    document.getElementById('grandTotal').textContent = formatCurrency(total);
+  }
+
+  function toggleMonth(key) {
+    const el = document.getElementById('month-'+key);
+    const t = document.getElementById('toggle-'+key);
+    el.classList.toggle('collapsed');
+    t.textContent = el.classList.contains('collapsed') ? '▸' : '▾';
+  }
+
+  // ─── UTILS ────────────────────────────────────────────────────────────────
+  function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+  function formatCurrency(val) { return '$' + parseFloat(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+  function formatTimestamp(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' · '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  }
+  function getMonthKey(iso) { const d = new Date(iso); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+  function getMonthLabel(key) { const [y,m]=key.split('-'); return new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
+  function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function notify(msg, isError=false) {
+    const el = document.createElement('div');
+    el.className = 'notification' + (isError?' error':'');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2100);
+  }
+
+  function startClock() {
+    setInterval(() => {
+      if (!editingId) {
+        document.getElementById('timestampDisplay').textContent = formatTimestamp(new Date().toISOString());
+      }
+    }, 1000);
+  }
+
+  // Auto-sync every 60 seconds if URL set
+  setInterval(() => { if (scriptUrl && !isSyncing) loadFromSheets(); }, 60000);
+
+  init();
+</script>
+</body>
+</html>
